@@ -1,6 +1,11 @@
 #![warn(clippy::all, clippy::pedantic)]
-use macroquad::color::colors::{DARKBLUE, SKYBLUE, YELLOW};
-use macroquad::prelude::*;
+use macroquad::{
+    color::colors::{DARKBLUE, SKYBLUE, YELLOW},
+    input::{is_key_down, KeyCode},
+    shapes::draw_rectangle,
+    text::draw_text,
+    window::{clear_background, next_frame, screen_height},
+};
 
 struct Flipper {
     x_displacement: f32,
@@ -65,13 +70,24 @@ async fn main() {
     loop {
         let GameState { ref mut flipper } = game_state;
 
+        if is_key_down(KeyCode::Escape) {
+            break;
+        }
+
         if is_key_down(KeyCode::Space) {
             flipper.flap();
         }
 
         clear_background(DARKBLUE);
 
+        //        egui_macroquad::ui(|egui_ctx| {
+        //            egui::Window::new("egui ❤ macroquad").show(egui_ctx,|ui| {ui.label("Test");});
+        //        });
+
         flipper.update();
+
+        // egui_macroquad::draw();
+
         flipper.draw();
 
         draw_text("Press SPACE to soar", 20.0, 20.0, 30.0, YELLOW);
