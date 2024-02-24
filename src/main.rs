@@ -1,7 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 use macroquad::{
     color::colors::{DARKBLUE, SKYBLUE, YELLOW},
-    input::{is_key_down, KeyCode},
+    input::{is_key_down, is_key_released, KeyCode},
     shapes::draw_rectangle,
     text::draw_text,
     window::{clear_background, next_frame, screen_height},
@@ -42,25 +42,37 @@ impl Flipper {
         }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self) -> GameMode {
         // gravity
         if self.velocity < 0.5 {
             self.velocity += 0.1;
         }
 
-        if self.y_displacement < 0.0 {
+        if self.y_displacement <= 0.0 {
             self.y_displacement = 0.0;
-        } else if self.y_displacement > screen_height() - 20.0 {
-            self.y_displacement = screen_height() - 20.0;
-        } else {
-            self.y_displacement += self.velocity;
         }
+        if self.y_displacement > screen_height() {
+            //self.y_displacement = screen_height() - 20.0;
+            return GameMode::GameOver;
+        }
+        self.y_displacement += self.velocity;
+
+        GameMode::Playing
     }
+}
+
+#[derive(Default)]
+enum GameMode {
+    #[default]
+    Menu,
+    Playing,
+    GameOver,
 }
 
 #[derive(Default)]
 struct GameState {
     flipper: Flipper,
+    mode: GameMode,
 }
 
 #[macroquad::main("Flipper")]
@@ -68,29 +80,55 @@ async fn main() {
     let mut game_state = GameState::default();
 
     loop {
-        let GameState { ref mut flipper } = game_state;
+        //        let GameState {
+        //            ref mut flipper, ..
+        //        } = game_state;
 
-        if is_key_down(KeyCode::Escape) {
-            break;
+        match game_state.mode {
+            GameMode::Menu => {
+                clear_background(YELLOW);
+                draw_text("Press SPACE to play", 20.0, 20.0, 30.0, DARKBLUE);
+                if is_key_down(KeyCode::Space) {
+                    game_state.mode = GameMode::Playing;
+                }
+                if is_key_down(KeyCode::Escape) {
+                    break;
+                }
+            }
+            GameMode::Playing => {
+                let GameState {
+                    ref mut flipper, ..
+                } = game_state;
+                clear_background(DARKBLUE);
+                draw_text("Press SPACE to soar", 20.0, 20.0, 30.0, YELLOW);
+
+                if is_key_down(KeyCode::Space) {
+                    flipper.flap();
+                }
+                if is_key_down(KeyCode::Escape) {
+                    break;
+                }
+
+                game_state.mode = flipper.update();
+
+                flipper.draw();
+            }
+            GameMode::GameOver => {
+                clear_background(YELLOW);
+                draw_text(
+                    "Game Over! Press SPACE to play again",
+                    20.0,
+                    20.0,
+                    30.0,
+                    DARKBLUE,
+                );
+
+                if is_key_released(KeyCode::Space) {
+                    game_state.flipper = Flipper::default();
+                    game_state.mode = GameMode::Menu;
+                }
+            }
         }
-
-        if is_key_down(KeyCode::Space) {
-            flipper.flap();
-        }
-
-        clear_background(DARKBLUE);
-
-        //        egui_macroquad::ui(|egui_ctx| {
-        //            egui::Window::new("egui ❤ macroquad").show(egui_ctx,|ui| {ui.label("Test");});
-        //        });
-
-        flipper.update();
-
-        // egui_macroquad::draw();
-
-        flipper.draw();
-
-        draw_text("Press SPACE to soar", 20.0, 20.0, 30.0, YELLOW);
 
         next_frame().await;
     }
