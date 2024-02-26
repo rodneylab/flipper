@@ -1,14 +1,30 @@
 #![warn(clippy::all, clippy::pedantic)]
+
+mod fonts;
+mod sound;
+mod ui;
+
+use fonts::{load_body_font, load_body_italic_font, load_heading_font};
 use macroquad::{
-    color::colors::{DARKBLUE, SKYBLUE, WHITE, YELLOW},
-    input::{is_key_down, is_key_released, KeyCode},
+    audio::{play_sound, PlaySoundParams, Sound},
+    input::{
+        is_key_down, is_key_released, is_mouse_button_pressed, is_quit_requested, prevent_quit,
+        KeyCode, MouseButton,
+    },
+    logging,
     shapes::draw_rectangle,
-    text::draw_text,
-    window::{clear_background, next_frame, screen_height, screen_width},
+    time::{get_frame_time, get_time},
+    window::{clear_background, next_frame, screen_height, screen_width, Conf},
+};
+use sound::load_flap as load_flap_sound;
+use ui::{
+    draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
+    draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE,
+    MAIZE, YINMNBLUE,
 };
 
-const SCREEN_WIDTH: f32 = 800.0;
-const SCREEN_HEIGHT: f32 = 600.0;
+const WINDOW_WIDTH: f32 = 800.0;
+const WINDOW_HEIGHT: f32 = 600.0;
 
 struct Camera {
     pan_speed: f32,
@@ -18,7 +34,7 @@ struct Camera {
 impl Default for Camera {
     fn default() -> Self {
         Camera {
-            pan_speed: 4.0,
+            pan_speed: 240.0,
             left_displacement: 0.0,
         }
     }
@@ -29,8 +45,8 @@ impl Camera {
         self.left_displacement < x_displacement && x_displacement < x_displacement + screen_width()
     }
 
-    fn update(&mut self) {
-        self.left_displacement += self.pan_speed;
+    fn update(&mut self, delta: f32) {
+        self.left_displacement += delta * self.pan_speed;
     }
 }
 
@@ -43,7 +59,7 @@ impl Default for FinishLine {
     fn default() -> Self {
         FinishLine {
             width: 5.0,
-            x_displacement: 4.0 * SCREEN_WIDTH,
+            x_displacement: 4.0 * WINDOW_WIDTH,
         }
     }
 }
@@ -55,8 +71,8 @@ impl FinishLine {
                 self.x_displacement - camera.left_displacement,
                 0.0,
                 5.0,
-                screen_height(),
-                WHITE,
+                WINDOW_HEIGHT,
+                COLUMBIABLUE,
             );
         }
     }
@@ -83,6 +99,7 @@ impl FinishLine {
 }
 
 struct Flipper {
+    flap_sound: Option<Sound>,
     x_displacement: f32,
     y_displacement: f32,
     acceleration: f32,
@@ -94,10 +111,11 @@ struct Flipper {
 impl Default for Flipper {
     fn default() -> Self {
         Flipper {
+            flap_sound: None,
             x_displacement: 20.0,
-            y_displacement: 0.5 * SCREEN_HEIGHT - 10.0,
-            acceleration: -0.5,
-            x_velocity: 4.0,
+            y_displacement: 0.5 * WINDOW_HEIGHT - 10.0,
+            acceleration: -30.0,
+            x_velocity: 240.0,
             y_velocity: 0.0,
             width: 20.0,
         }
@@ -111,12 +129,21 @@ impl Flipper {
             self.y_displacement,
             self.width,
             20.0,
-            SKYBLUE,
+            YINMNBLUE,
         );
     }
 
     fn flap(&mut self) {
-        if self.y_velocity > -3.0 {
+        if let Some(value) = &self.flap_sound {
+            play_sound(
+                value,
+                PlaySoundParams {
+                    looped: false,
+                    volume: 0.05,
+                },
+            );
+        };
+        if self.y_velocity > -180.0 {
             self.y_velocity += self.acceleration;
         }
     }
@@ -129,23 +156,27 @@ impl Flipper {
         self.x_displacement + self.width
     }
 
-    fn update(&mut self) -> GameMode {
-        self.x_displacement += self.x_velocity;
+    fn update(&mut self, delta: f32) -> GameMode {
+        self.x_displacement += delta * self.x_velocity;
 
         // gravity
-        if self.y_velocity < 0.5 {
-            self.y_velocity += 0.1;
+        if self.y_velocity < 30.0 {
+            self.y_velocity += 6.0;
         }
 
         if self.y_displacement <= 0.0 {
             self.y_displacement = 0.0;
-        }
-        if self.y_displacement > screen_height() {
+        } else if self.y_displacement > screen_height() {
             return GameMode::GameOver;
         }
-        self.y_displacement += self.y_velocity;
+        self.y_displacement += delta * self.y_velocity;
 
         GameMode::Playing
+    }
+
+    fn with_flap_sound(&mut self, sound: Sound) -> &mut Self {
+        self.flap_sound = Some(sound);
+        self
     }
 
     #[allow(dead_code)]
@@ -161,12 +192,22 @@ impl Flipper {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug)]
+enum ResumeGameMode {
+    Menu,
+    Playing,
+}
+
+#[derive(Debug, Default)]
 enum GameMode {
-    #[default]
+    Exiting(ResumeGameMode),
     Menu,
     Playing,
     GameOver,
+
+    #[default]
+    Title,
+
     Won,
 }
 
@@ -189,20 +230,67 @@ fn flipper_finish_line_collision(flipper: &Flipper, finish_line: &FinishLine) ->
     flipper.right() > finish_line.left() && flipper.left() < finish_line.right()
 }
 
-#[macroquad::main("Flipper")]
-async fn main() {
+fn conf() -> Conf {
+    #[allow(clippy::cast_possible_truncation)]
+    Conf {
+        window_title: String::from("Flipper"),
+        window_width: WINDOW_WIDTH as i32,
+        window_height: WINDOW_HEIGHT as i32,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(conf)]
+async fn main<'a>() {
+    prevent_quit();
+
+    let heading_font = load_heading_font().await;
+    let body_italic_font = load_body_italic_font().await;
+    let body_font = load_body_font().await;
+
     let mut game_state = GameState::default();
+    game_state.flipper.with_flap_sound(load_flap_sound().await);
 
     loop {
+        let delta = get_frame_time();
+
+        logging::trace!("Game mode is {:?}", game_state.mode);
+
         match game_state.mode {
+            GameMode::Exiting(ref resume_mode) => {
+                clear_background(MAIZE);
+                draw_exit_screen_text(&body_font);
+                if is_key_down(KeyCode::Enter) {
+                    break;
+                }
+                if is_key_released(KeyCode::Escape) {
+                    match resume_mode {
+                        ResumeGameMode::Playing => game_state.mode = GameMode::Playing,
+                        ResumeGameMode::Menu => game_state.mode = GameMode::Menu,
+                    }
+                }
+            }
+            GameMode::Title => {
+                clear_background(MAIZE);
+                draw_title_screen_text(&heading_font, &body_font, &body_italic_font);
+                if is_key_released(KeyCode::Space)
+                    || is_mouse_button_pressed(MouseButton::Left)
+                    || get_time() > 5.0
+                {
+                    game_state.mode = GameMode::Menu;
+                }
+                if is_key_released(KeyCode::Escape) || is_quit_requested() {
+                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
+                }
+            }
             GameMode::Menu => {
-                clear_background(YELLOW);
-                draw_text("Press SPACE to play", 20.0, 20.0, 30.0, DARKBLUE);
+                clear_background(DARKPASTELGREEN);
+                draw_menu_screen_text(&body_font);
                 if is_key_down(KeyCode::Space) {
                     game_state.mode = GameMode::Playing;
                 }
-                if is_key_down(KeyCode::Escape) {
-                    break;
+                if is_key_released(KeyCode::Escape) || is_quit_requested() {
+                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
                 }
             }
             GameMode::Playing => {
@@ -212,57 +300,49 @@ async fn main() {
                     ref mut flipper,
                     ..
                 } = game_state;
-                clear_background(DARKBLUE);
-                draw_text("Press SPACE to soar", 20.0, 20.0, 30.0, YELLOW);
+                clear_background(DEEPSKYBLUE);
+                draw_info_text(&body_font);
 
-                if is_key_down(KeyCode::Space) {
-                    flipper.flap();
-                }
-                if is_key_down(KeyCode::Escape) {
-                    break;
-                }
-
-                camera.update();
-                if flipper_finish_line_collision(flipper, finish_line) {
-                    game_state.mode = GameMode::Won;
+                if is_key_released(KeyCode::Escape) || is_quit_requested() {
+                    game_state.mode = GameMode::Exiting(ResumeGameMode::Playing);
                 } else {
-                    game_state.mode = flipper.update();
-                }
+                    if is_key_down(KeyCode::Space) {
+                        flipper.flap();
+                    }
 
-                flipper.draw(camera);
-                finish_line.draw(camera);
+                    camera.update(delta);
+                    if flipper_finish_line_collision(flipper, finish_line) {
+                        game_state.mode = GameMode::Won;
+                    } else {
+                        game_state.mode = flipper.update(delta);
+                    }
+
+                    flipper.draw(camera);
+                    finish_line.draw(camera);
+                }
             }
             GameMode::GameOver => {
-                clear_background(YELLOW);
-                draw_text(
-                    "Game Over! Press SPACE to play again",
-                    20.0,
-                    20.0,
-                    30.0,
-                    DARKBLUE,
-                );
+                clear_background(COLUMBIABLUE);
+                draw_game_over_screen_text(&body_font);
 
                 if is_key_released(KeyCode::Space) {
                     game_state.reset();
                     game_state.mode = GameMode::Menu;
+                }
+                if is_key_released(KeyCode::Escape) || is_quit_requested() {
+                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
                 }
             }
             GameMode::Won => {
-                clear_background(YELLOW);
-                draw_text(
-                    "You win! Press SPACE to play again",
-                    20.0,
-                    20.0,
-                    30.0,
-                    DARKBLUE,
-                );
+                clear_background(YINMNBLUE);
+                draw_win_screen_text(&body_font);
 
                 if is_key_released(KeyCode::Space) {
                     game_state.reset();
                     game_state.mode = GameMode::Menu;
                 }
-                if is_key_down(KeyCode::Escape) {
-                    break;
+                if is_key_released(KeyCode::Escape) || is_quit_requested() {
+                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
                 }
             }
         }
@@ -274,6 +354,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::{flipper_finish_line_collision, FinishLine, Flipper};
+    use float_cmp::approx_eq;
 
     #[test]
     fn finish_line_left_returns_expected_value() {
@@ -285,7 +366,13 @@ mod tests {
         let result = finish_line.left();
 
         // assert
-        assert!((result - 50.0).abs() < f32::EPSILON);
+        assert!(approx_eq!(
+            f32,
+            result,
+            50.0,
+            epsilon = f32::EPSILON,
+            ulps = 2
+        ));
     }
 
     #[test]
@@ -298,7 +385,13 @@ mod tests {
         let result = finish_line.right();
 
         // assert
-        assert!((result - 60.0).abs() < f32::EPSILON);
+        assert!(approx_eq!(
+            f32,
+            result,
+            60.0,
+            epsilon = f32::EPSILON,
+            ulps = 2
+        ));
     }
 
     #[test]
@@ -311,7 +404,13 @@ mod tests {
         let result = flipper.left();
 
         // assert
-        assert!((result - 100.0).abs() < f32::EPSILON);
+        assert!(approx_eq!(
+            f32,
+            result,
+            100.0,
+            epsilon = f32::EPSILON,
+            ulps = 2
+        ));
     }
 
     #[test]
@@ -324,7 +423,13 @@ mod tests {
         let result = flipper.right();
 
         // assert
-        assert!((result - 130.0).abs() < f32::EPSILON);
+        assert!(approx_eq!(
+            f32,
+            result,
+            130.0,
+            epsilon = f32::EPSILON,
+            ulps = 2
+        ));
     }
 
     #[test]
