@@ -16,7 +16,10 @@ use macroquad::{
     time::{get_frame_time, get_time},
     window::{clear_background, next_frame, screen_height, screen_width, Conf},
 };
-use sound::{load_background as load_background_sound, load_flap as load_flap_sound};
+use sound::{
+    load_background as load_background_sound, load_flap as load_flap_sound,
+    load_game_over as load_game_over_sound, load_victory as load_victory_sound,
+};
 
 use ui::{
     draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
@@ -157,7 +160,7 @@ impl Flipper {
         self.x_displacement + self.width
     }
 
-    fn update(&mut self, delta: f32) -> GameMode {
+    fn update(&mut self, delta: f32) -> Option<GameMode> {
         self.x_displacement += delta * self.x_velocity;
 
         // gravity
@@ -168,11 +171,11 @@ impl Flipper {
         if self.y_displacement <= 0.0 {
             self.y_displacement = 0.0;
         } else if self.y_displacement > screen_height() {
-            return GameMode::GameOver;
+            return Some(GameMode::GameOver);
         }
         self.y_displacement += delta * self.y_velocity;
 
-        GameMode::Playing
+        None
     }
 
     fn with_flap_sound(&mut self, sound: Sound) -> &mut Self {
@@ -193,13 +196,13 @@ impl Flipper {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum ResumeGameMode {
     Menu,
     Playing,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 enum GameMode {
     Exiting(ResumeGameMode),
     Menu,
@@ -241,6 +244,16 @@ fn conf() -> Conf {
     }
 }
 
+fn play_sound_once(sound: &Sound) {
+    play_sound(
+        sound,
+        PlaySoundParams {
+            looped: false,
+            volume: 0.05,
+        },
+    );
+}
+
 fn start_playing_looped_sound(sound: &Sound) {
     play_sound(
         sound,
@@ -258,7 +271,6 @@ fn stop_playing_looped_sound(sound: &Sound) {
 fn handle_start_game(background_sound: &Sound) -> Option<GameMode> {
     if is_key_down(KeyCode::Space) {
         start_playing_looped_sound(background_sound);
-        // game_state.mode = GameMode::Playing;
         return Some(GameMode::Playing);
     }
     None
@@ -269,6 +281,13 @@ fn handle_request_quit(resume_mode: ResumeGameMode) -> Option<GameMode> {
         return Some(GameMode::Exiting(resume_mode));
     }
     None
+}
+
+fn handle_replay(game_state: &mut GameState) {
+    if is_key_released(KeyCode::Space) {
+        game_state.reset();
+        game_state.mode = GameMode::Menu;
+    }
 }
 
 fn handle_skip_title() -> Option<GameMode> {
@@ -352,36 +371,35 @@ async fn main<'a>() {
                     camera.update(delta);
                     if flipper_finish_line_collision(flipper, finish_line) {
                         game_state.mode = GameMode::Won;
-                    } else {
-                        game_state.mode = flipper.update(delta);
+                        stop_playing_looped_sound(&background_sound);
+                        let victory_sound = load_victory_sound().await;
+                        play_sound_once(&victory_sound);
+                    } else if let Some(value) = flipper.update(delta) {
+                        if value == GameMode::GameOver {
+                            stop_playing_looped_sound(&background_sound);
+                            let game_over_sound = load_game_over_sound().await;
+                            play_sound_once(&game_over_sound);
+                        }
+                        game_state.mode = value;
                     }
-
                     flipper.draw(camera);
                     finish_line.draw(camera);
                 }
             }
             GameMode::GameOver => {
-                stop_playing_looped_sound(&background_sound);
                 clear_background(COLUMBIABLUE);
                 draw_game_over_screen_text(&body_font);
 
-                if is_key_released(KeyCode::Space) {
-                    game_state.reset();
-                    game_state.mode = GameMode::Menu;
-                }
+                handle_replay(&mut game_state);
                 if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
                     game_state.mode = value;
                 };
             }
             GameMode::Won => {
-                stop_playing_looped_sound(&background_sound);
                 clear_background(YINMNBLUE);
                 draw_win_screen_text(&body_font);
 
-                if is_key_released(KeyCode::Space) {
-                    game_state.reset();
-                    game_state.mode = GameMode::Menu;
-                }
+                handle_replay(&mut game_state);
                 if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
                     game_state.mode = value;
                 };
