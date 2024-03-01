@@ -1,4 +1,4 @@
-use macroquad::audio::{load_sound, Sound};
+use macroquad::audio::{load_sound, play_sound, stop_sound, PlaySoundParams, Sound};
 
 pub async fn load_background() -> Sound {
     load_sound("./assets/background.wav")
@@ -22,4 +22,28 @@ pub async fn load_victory() -> Sound {
     load_sound("./assets/victory.wav")
         .await
         .expect("Unable to load victory sound")
+}
+
+pub fn play_sound_once(sound: &Sound) {
+    play_sound(
+        sound,
+        PlaySoundParams {
+            looped: false,
+            volume: 0.05,
+        },
+    );
+}
+
+pub fn start_playing_looped(sound: &Sound) {
+    play_sound(
+        sound,
+        PlaySoundParams {
+            looped: true,
+            volume: 0.05,
+        },
+    );
+}
+
+pub fn stop_playing_looped(sound: &Sound) {
+    stop_sound(sound);
 }
