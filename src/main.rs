@@ -6,7 +6,7 @@ mod ui;
 
 use fonts::{load_body_font, load_body_italic_font, load_heading_font};
 use macroquad::{
-    audio::{play_sound, PlaySoundParams, Sound},
+    audio::{play_sound, stop_sound, PlaySoundParams, Sound},
     input::{
         is_key_down, is_key_released, is_mouse_button_pressed, is_quit_requested, prevent_quit,
         KeyCode, MouseButton,
@@ -16,7 +16,8 @@ use macroquad::{
     time::{get_frame_time, get_time},
     window::{clear_background, next_frame, screen_height, screen_width, Conf},
 };
-use sound::load_flap as load_flap_sound;
+use sound::{load_background as load_background_sound, load_flap as load_flap_sound};
+
 use ui::{
     draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
     draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE,
@@ -240,6 +241,46 @@ fn conf() -> Conf {
     }
 }
 
+fn start_playing_looped_sound(sound: &Sound) {
+    play_sound(
+        sound,
+        PlaySoundParams {
+            looped: true,
+            volume: 0.05,
+        },
+    );
+}
+
+fn stop_playing_looped_sound(sound: &Sound) {
+    stop_sound(sound);
+}
+
+fn handle_start_game(background_sound: &Sound) -> Option<GameMode> {
+    if is_key_down(KeyCode::Space) {
+        start_playing_looped_sound(background_sound);
+        // game_state.mode = GameMode::Playing;
+        return Some(GameMode::Playing);
+    }
+    None
+}
+
+fn handle_request_quit(resume_mode: ResumeGameMode) -> Option<GameMode> {
+    if is_key_released(KeyCode::Escape) || is_quit_requested() {
+        return Some(GameMode::Exiting(resume_mode));
+    }
+    None
+}
+
+fn handle_skip_title() -> Option<GameMode> {
+    if is_key_released(KeyCode::Space)
+        || is_mouse_button_pressed(MouseButton::Left)
+        || get_time() > 5.0
+    {
+        return Some(GameMode::Menu);
+    }
+    None
+}
+
 #[macroquad::main(conf)]
 async fn main<'a>() {
     prevent_quit();
@@ -249,6 +290,7 @@ async fn main<'a>() {
     let body_font = load_body_font().await;
 
     let mut game_state = GameState::default();
+    let background_sound = load_background_sound().await;
     game_state.flipper.with_flap_sound(load_flap_sound().await);
 
     loop {
@@ -273,25 +315,22 @@ async fn main<'a>() {
             GameMode::Title => {
                 clear_background(MAIZE);
                 draw_title_screen_text(&heading_font, &body_font, &body_italic_font);
-                if is_key_released(KeyCode::Space)
-                    || is_mouse_button_pressed(MouseButton::Left)
-                    || get_time() > 5.0
-                {
-                    game_state.mode = GameMode::Menu;
+                if let Some(value) = handle_skip_title() {
+                    game_state.mode = value;
                 }
-                if is_key_released(KeyCode::Escape) || is_quit_requested() {
-                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
-                }
+                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
+                    game_state.mode = value;
+                };
             }
             GameMode::Menu => {
                 clear_background(DARKPASTELGREEN);
                 draw_menu_screen_text(&body_font);
-                if is_key_down(KeyCode::Space) {
-                    game_state.mode = GameMode::Playing;
+                if let Some(value) = handle_start_game(&background_sound) {
+                    game_state.mode = value;
                 }
-                if is_key_released(KeyCode::Escape) || is_quit_requested() {
-                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
-                }
+                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
+                    game_state.mode = value;
+                };
             }
             GameMode::Playing => {
                 let GameState {
@@ -303,8 +342,8 @@ async fn main<'a>() {
                 clear_background(DEEPSKYBLUE);
                 draw_info_text(&body_font);
 
-                if is_key_released(KeyCode::Escape) || is_quit_requested() {
-                    game_state.mode = GameMode::Exiting(ResumeGameMode::Playing);
+                if let Some(value) = handle_request_quit(ResumeGameMode::Playing) {
+                    game_state.mode = value;
                 } else {
                     if is_key_down(KeyCode::Space) {
                         flipper.flap();
@@ -322,6 +361,7 @@ async fn main<'a>() {
                 }
             }
             GameMode::GameOver => {
+                stop_playing_looped_sound(&background_sound);
                 clear_background(COLUMBIABLUE);
                 draw_game_over_screen_text(&body_font);
 
@@ -329,11 +369,12 @@ async fn main<'a>() {
                     game_state.reset();
                     game_state.mode = GameMode::Menu;
                 }
-                if is_key_released(KeyCode::Escape) || is_quit_requested() {
-                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
-                }
+                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
+                    game_state.mode = value;
+                };
             }
             GameMode::Won => {
+                stop_playing_looped_sound(&background_sound);
                 clear_background(YINMNBLUE);
                 draw_win_screen_text(&body_font);
 
@@ -341,9 +382,9 @@ async fn main<'a>() {
                     game_state.reset();
                     game_state.mode = GameMode::Menu;
                 }
-                if is_key_released(KeyCode::Escape) || is_quit_requested() {
-                    game_state.mode = GameMode::Exiting(ResumeGameMode::Menu);
-                }
+                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
+                    game_state.mode = value;
+                };
             }
         }
 
