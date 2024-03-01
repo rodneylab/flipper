@@ -5,7 +5,7 @@ mod fonts;
 mod sound;
 mod ui;
 
-use entities::{flipper_finish_line_collision, Camera, FinishLine, Flipper};
+use entities::{flipper_finish_line_collision, Camera, FinishLine, Flipper, Obstacle};
 use fonts::{load_body_font, load_body_italic_font, load_heading_font};
 use macroquad::{
     audio::Sound,
@@ -28,6 +28,8 @@ use ui::{
     draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE,
     MAIZE, YINMNBLUE,
 };
+
+use crate::entities::flipper_obstruction_collision;
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
@@ -57,6 +59,7 @@ struct GameState {
     finish_line: FinishLine,
     flipper: Flipper,
     mode: GameMode,
+    obstructions: Vec<Obstacle>,
 }
 
 impl GameState {
@@ -108,6 +111,48 @@ fn handle_skip_title() -> Option<GameMode> {
     None
 }
 
+fn generate_obscructions() -> Vec<Obstacle> {
+    let result: Vec<Obstacle> = vec![
+        Obstacle::new(600.0, 300.0, 100.0),
+        Obstacle::new(900.0, 350.0, 75.0),
+        Obstacle::new(1200.0, 300.0, 75.0),
+    ];
+
+    result
+}
+
+async fn handle_before_transisition_to_won(background_sound: &Sound) {
+    stop_playing_looped_sound(background_sound);
+    let victory_sound = load_victory_sound().await;
+    play_sound_once(&victory_sound);
+}
+
+async fn handle_before_transisition_to_game_over(background_sound: &Sound) {
+    stop_playing_looped_sound(background_sound);
+    let game_over_sound = load_game_over_sound().await;
+    play_sound_once(&game_over_sound);
+}
+
+async fn handle_collisions(
+    flipper: &Flipper,
+    obstructions: &[Obstacle],
+    finish_line: &FinishLine,
+    background_sound: &Sound,
+) -> Option<GameMode> {
+    if obstructions
+        .iter()
+        .any(|val| flipper_obstruction_collision(flipper, val))
+    {
+        handle_before_transisition_to_game_over(background_sound).await;
+        return Some(GameMode::GameOver);
+    }
+    if flipper_finish_line_collision(flipper, finish_line) {
+        handle_before_transisition_to_won(background_sound).await;
+        return Some(GameMode::Won);
+    }
+    None
+}
+
 #[macroquad::main(conf)]
 async fn main<'a>() {
     prevent_quit();
@@ -119,6 +164,7 @@ async fn main<'a>() {
     let mut game_state = GameState::default();
     let background_sound = load_background_sound().await;
     game_state.flipper.with_flap_sound(load_flap_sound().await);
+    game_state.obstructions = generate_obscructions();
 
     loop {
         let delta = get_frame_time();
@@ -164,6 +210,7 @@ async fn main<'a>() {
                     ref mut camera,
                     ref finish_line,
                     ref mut flipper,
+                    ref obstructions,
                     ..
                 } = game_state;
                 clear_background(DEEPSKYBLUE);
@@ -177,20 +224,19 @@ async fn main<'a>() {
                     }
 
                     camera.update(delta);
-                    if flipper_finish_line_collision(flipper, finish_line) {
-                        game_state.mode = GameMode::Won;
-                        stop_playing_looped_sound(&background_sound);
-                        let victory_sound = load_victory_sound().await;
-                        play_sound_once(&victory_sound);
+                    if let Some(value) =
+                        handle_collisions(flipper, obstructions, finish_line, &background_sound)
+                            .await
+                    {
+                        game_state.mode = value;
                     } else if let Some(value) = flipper.update(delta) {
                         if value == GameMode::GameOver {
-                            stop_playing_looped_sound(&background_sound);
-                            let game_over_sound = load_game_over_sound().await;
-                            play_sound_once(&game_over_sound);
+                            handle_before_transisition_to_game_over(&background_sound).await;
                         }
                         game_state.mode = value;
                     }
                     flipper.draw(camera);
+                    obstructions.iter().for_each(|val| val.draw(camera));
                     finish_line.draw(camera);
                 }
             }
