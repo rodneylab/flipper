@@ -29,7 +29,7 @@ use ui::{
     MAIZE, YINMNBLUE,
 };
 
-use crate::entities::flipper_obstruction_collision;
+use crate::entities::flipper_obstacle_collision;
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
@@ -59,7 +59,7 @@ struct GameState {
     finish_line: FinishLine,
     flipper: Flipper,
     mode: GameMode,
-    obstructions: Vec<Obstacle>,
+    obstacles: Vec<Obstacle>,
 }
 
 impl GameState {
@@ -135,13 +135,13 @@ async fn handle_before_transisition_to_game_over(background_sound: &Sound) {
 
 async fn handle_collisions(
     flipper: &Flipper,
-    obstructions: &[Obstacle],
+    obstacles: &[Obstacle],
     finish_line: &FinishLine,
     background_sound: &Sound,
 ) -> Option<GameMode> {
-    if obstructions
+    if obstacles
         .iter()
-        .any(|val| flipper_obstruction_collision(flipper, val))
+        .any(|val| flipper_obstacle_collision(flipper, val))
     {
         handle_before_transisition_to_game_over(background_sound).await;
         return Some(GameMode::GameOver);
@@ -164,7 +164,7 @@ async fn main<'a>() {
     let mut game_state = GameState::default();
     let background_sound = load_background_sound().await;
     game_state.flipper.with_flap_sound(load_flap_sound().await);
-    game_state.obstructions = generate_obscructions();
+    game_state.obstacles = generate_obscructions();
 
     loop {
         let delta = get_frame_time();
@@ -210,7 +210,7 @@ async fn main<'a>() {
                     ref mut camera,
                     ref finish_line,
                     ref mut flipper,
-                    ref obstructions,
+                    ref obstacles,
                     ..
                 } = game_state;
                 clear_background(DEEPSKYBLUE);
@@ -225,8 +225,7 @@ async fn main<'a>() {
 
                     camera.update(delta);
                     if let Some(value) =
-                        handle_collisions(flipper, obstructions, finish_line, &background_sound)
-                            .await
+                        handle_collisions(flipper, obstacles, finish_line, &background_sound).await
                     {
                         game_state.mode = value;
                     } else if let Some(value) = flipper.update(delta) {
@@ -236,7 +235,7 @@ async fn main<'a>() {
                         game_state.mode = value;
                     }
                     flipper.draw(camera);
-                    obstructions.iter().for_each(|val| val.draw(camera));
+                    obstacles.iter().for_each(|val| val.draw(camera));
                     finish_line.draw(camera);
                 }
             }
