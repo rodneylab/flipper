@@ -219,12 +219,12 @@ impl Obstacle {
     }
 }
 
-pub fn flipper_obstruction_collision(flipper: &Flipper, obstruction: &Obstacle) -> bool {
-    if flipper.right() < obstruction.left() || flipper.left() > obstruction.right() {
+pub fn flipper_obstacle_collision(flipper: &Flipper, obstacle: &Obstacle) -> bool {
+    if flipper.right() < obstacle.left() || flipper.left() > obstacle.right() {
         return false;
     }
 
-    flipper.bottom() > obstruction.gap_bottom() || flipper.top() < obstruction.gap_top()
+    flipper.bottom() > obstacle.gap_bottom() || flipper.top() < obstacle.gap_top()
 }
 
 pub struct FinishLine {
