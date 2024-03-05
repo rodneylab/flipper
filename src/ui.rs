@@ -1,49 +1,46 @@
-use crate::WINDOW_WIDTH;
-use macroquad::{
-    color::Color,
-    text::{draw_text_ex, measure_text, Font, TextDimensions, TextParams},
+use crate::{components::Colour, WINDOW_WIDTH};
+use macroquad::text::{draw_text_ex, measure_text, Font, TextDimensions, TextParams};
+
+pub const COLUMBIABLUE: Colour = Colour {
+    r: 189,
+    g: 213,
+    b: 234,
+    a: 255,
 };
 
-pub const COLUMBIABLUE: Color = Color {
-    r: 189.0 / 255.0,
-    g: 213.0 / 255.0,
-    b: 234.0 / 255.0,
-    a: 1.0,
+pub const DARKPASTELGREEN: Colour = Colour {
+    r: 76,
+    g: 185,
+    b: 68,
+    a: 255,
 };
 
-pub const DARKPASTELGREEN: Color = Color {
-    r: 76.0 / 255.0,
-    g: 185.0 / 255.0,
-    b: 68.0 / 255.0,
-    a: 1.0,
+pub const DEEPSKYBLUE: Colour = Colour {
+    r: 0,
+    g: 187,
+    b: 249,
+    a: 255,
 };
 
-pub const DEEPSKYBLUE: Color = Color {
-    r: 0.0,
-    g: 187.0 / 255.0,
-    b: 249.0 / 255.0,
-    a: 1.0,
+pub const DRABDARKBROWN: Colour = Colour {
+    r: 48,
+    g: 50,
+    b: 28,
+    a: 255,
 };
 
-pub const DRABDARKBROWN: Color = Color {
-    r: 48.0 / 255.0,
-    g: 50.0 / 255.0,
-    b: 28.0 / 255.0,
-    a: 1.0,
+pub const MAIZE: Colour = Colour {
+    r: 254,
+    g: 228,
+    b: 64,
+    a: 255,
 };
 
-pub const MAIZE: Color = Color {
-    r: 254.0 / 255.0,
-    g: 228.0 / 255.0,
-    b: 64.0 / 255.0,
-    a: 1.0,
-};
-
-pub const YINMNBLUE: Color = Color {
-    r: 39.0 / 255.0,
-    g: 76.0 / 255.0,
-    b: 119.0 / 255.0,
-    a: 1.0,
+pub const YINMNBLUE: Colour = Colour {
+    r: 39,
+    g: 76,
+    b: 119,
+    a: 255,
 };
 
 pub fn draw_exit_screen_text(body_font: &Font) {
@@ -59,7 +56,7 @@ pub fn draw_exit_screen_text(body_font: &Font) {
         TextParams {
             font_size: 36,
             font: Some(body_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             ..Default::default()
         },
     );
@@ -76,7 +73,7 @@ pub fn draw_exit_screen_text(body_font: &Font) {
         TextParams {
             font_size: 36,
             font: Some(body_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             ..Default::default()
         },
     );
@@ -93,7 +90,7 @@ pub fn draw_exit_screen_text(body_font: &Font) {
         TextParams {
             font_size: 36,
             font: Some(body_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             ..Default::default()
         },
     );
@@ -112,7 +109,7 @@ pub fn draw_game_over_screen_text(body_font: &Font) {
         TextParams {
             font_size: 36,
             font: Some(body_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             ..Default::default()
         },
     );
@@ -129,7 +126,7 @@ pub fn draw_game_over_screen_text(body_font: &Font) {
         TextParams {
             font_size: 48,
             font: Some(body_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             ..Default::default()
         },
     );
@@ -143,7 +140,7 @@ pub fn draw_info_text(body_font: &Font) {
         TextParams {
             font_size: 24,
             font: Some(body_font),
-            color: DRABDARKBROWN,
+            color: DRABDARKBROWN.into(),
             ..Default::default()
         },
     );
@@ -162,7 +159,7 @@ pub fn draw_menu_screen_text(body_font: &Font) {
         TextParams {
             font_size: 36,
             font: Some(body_font),
-            color: DRABDARKBROWN,
+            color: DRABDARKBROWN.into(),
             ..Default::default()
         },
     );
@@ -179,7 +176,7 @@ pub fn draw_menu_screen_text(body_font: &Font) {
         TextParams {
             font_size: 48,
             font: Some(body_font),
-            color: DRABDARKBROWN,
+            color: DRABDARKBROWN.into(),
             ..Default::default()
         },
     );
@@ -198,7 +195,7 @@ pub fn draw_title_screen_text(heading_font: &Font, body_font: &Font, body_italic
         TextParams {
             font_size: 144,
             font: Some(heading_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             rotation: -0.06,
             ..Default::default()
         },
@@ -216,7 +213,7 @@ pub fn draw_title_screen_text(heading_font: &Font, body_font: &Font, body_italic
         TextParams {
             font_size: 36,
             font: Some(body_italic_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             ..Default::default()
         },
     );
@@ -233,7 +230,7 @@ pub fn draw_title_screen_text(heading_font: &Font, body_font: &Font, body_italic
         TextParams {
             font_size: 28,
             font: Some(body_font),
-            color: YINMNBLUE,
+            color: YINMNBLUE.into(),
             ..Default::default()
         },
     );
@@ -252,7 +249,7 @@ pub fn draw_win_screen_text(body_font: &Font) {
         TextParams {
             font_size: 72,
             font: Some(body_font),
-            color: COLUMBIABLUE,
+            color: COLUMBIABLUE.into(),
             ..Default::default()
         },
     );
@@ -269,7 +266,7 @@ pub fn draw_win_screen_text(body_font: &Font) {
         TextParams {
             font_size: 36,
             font: Some(body_font),
-            color: COLUMBIABLUE,
+            color: COLUMBIABLUE.into(),
             ..Default::default()
         },
     );

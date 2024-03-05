@@ -1,73 +1,35 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-mod entities;
+mod components;
 mod fonts;
+mod resources;
 mod sound;
+mod systems;
 mod ui;
 
-use entities::{flipper_finish_line_collision, Camera, FinishLine, Flipper, Obstacle};
-use fonts::{load_body_font, load_body_italic_font, load_heading_font};
-use macroquad::{
-    audio::Sound,
-    input::{
-        is_key_down, is_key_released, is_mouse_button_pressed, is_quit_requested, prevent_quit,
-        KeyCode, MouseButton,
+use crate::{
+    fonts::{load_body_font, load_body_italic_font, load_heading_font},
+    resources::{Camera, DeltaTime, GameMode, GameState},
+    systems::{
+        create_exiting_schedule, create_game_over_schedule, create_menu_schedule,
+        create_playing_schedule, create_title_schedule, create_victory_schedule,
+        initialise_sound_resources, spawn_entities,
     },
+    ui::{
+        draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
+        draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE,
+        MAIZE, YINMNBLUE,
+    },
+};
+use bevy_ecs::{schedule::Schedule, world::World};
+use macroquad::{
+    input::{is_key_down, prevent_quit, KeyCode},
     logging,
-    time::{get_frame_time, get_time},
     window::{clear_background, next_frame, Conf},
 };
-use sound::{
-    load_background as load_background_sound, load_flap as load_flap_sound,
-    load_game_over as load_game_over_sound, load_victory as load_victory_sound, play_sound_once,
-    start_playing_looped as start_playing_looped_sound,
-    stop_playing_looped as stop_playing_looped_sound,
-};
-use ui::{
-    draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
-    draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE,
-    MAIZE, YINMNBLUE,
-};
-
-use crate::entities::flipper_obstacle_collision;
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
-
-#[derive(Debug, PartialEq)]
-enum ResumeGameMode {
-    Menu,
-    Playing,
-}
-
-#[derive(Debug, Default, PartialEq)]
-enum GameMode {
-    Exiting(ResumeGameMode),
-    Menu,
-    Playing,
-    GameOver,
-
-    #[default]
-    Title,
-
-    Won,
-}
-
-#[derive(Default)]
-struct GameState {
-    camera: Camera,
-    finish_line: FinishLine,
-    flipper: Flipper,
-    mode: GameMode,
-    obstacles: Vec<Obstacle>,
-}
-
-impl GameState {
-    fn reset(&mut self) {
-        self.camera = Camera::default();
-        self.flipper = Flipper::default();
-    }
-}
 
 fn conf() -> Conf {
     #[allow(clippy::cast_possible_truncation)]
@@ -79,183 +41,71 @@ fn conf() -> Conf {
     }
 }
 
-fn handle_start_game(background_sound: &Sound) -> Option<GameMode> {
-    if is_key_down(KeyCode::Space) {
-        start_playing_looped_sound(background_sound);
-        return Some(GameMode::Playing);
-    }
-    None
-}
-
-fn handle_request_quit(resume_mode: ResumeGameMode) -> Option<GameMode> {
-    if is_key_released(KeyCode::Escape) || is_quit_requested() {
-        return Some(GameMode::Exiting(resume_mode));
-    }
-    None
-}
-
-fn handle_replay(game_state: &mut GameState) {
-    if is_key_released(KeyCode::Space) {
-        game_state.reset();
-        game_state.mode = GameMode::Menu;
-    }
-}
-
-fn handle_skip_title() -> Option<GameMode> {
-    if is_key_released(KeyCode::Space)
-        || is_mouse_button_pressed(MouseButton::Left)
-        || get_time() > 5.0
-    {
-        return Some(GameMode::Menu);
-    }
-    None
-}
-
-fn generate_obscructions() -> Vec<Obstacle> {
-    let result: Vec<Obstacle> = vec![
-        Obstacle::new(600.0, 300.0, 100.0),
-        Obstacle::new(900.0, 350.0, 75.0),
-        Obstacle::new(1200.0, 300.0, 75.0),
-    ];
-
-    result
-}
-
-async fn handle_before_transisition_to_won(background_sound: &Sound) {
-    stop_playing_looped_sound(background_sound);
-    let victory_sound = load_victory_sound().await;
-    play_sound_once(&victory_sound);
-}
-
-async fn handle_before_transisition_to_game_over(background_sound: &Sound) {
-    stop_playing_looped_sound(background_sound);
-    let game_over_sound = load_game_over_sound().await;
-    play_sound_once(&game_over_sound);
-}
-
-async fn handle_collisions(
-    flipper: &Flipper,
-    obstacles: &[Obstacle],
-    finish_line: &FinishLine,
-    background_sound: &Sound,
-) -> Option<GameMode> {
-    if obstacles
-        .iter()
-        .any(|val| flipper_obstacle_collision(flipper, val))
-    {
-        handle_before_transisition_to_game_over(background_sound).await;
-        return Some(GameMode::GameOver);
-    }
-    if flipper_finish_line_collision(flipper, finish_line) {
-        handle_before_transisition_to_won(background_sound).await;
-        return Some(GameMode::Won);
-    }
-    None
-}
-
 #[macroquad::main(conf)]
 async fn main<'a>() {
     prevent_quit();
+
+    let mut world = World::new();
+    world.init_resource::<DeltaTime>();
+    world.init_resource::<Camera>();
+    world.init_resource::<GameState>();
+
+    spawn_entities(&mut world).await;
+
+    let mut initialise_sound_system = Schedule::default();
+    initialise_sound_system.add_systems(initialise_sound_resources);
+    initialise_sound_system.run(&mut world);
 
     let heading_font = load_heading_font().await;
     let body_italic_font = load_body_italic_font().await;
     let body_font = load_body_font().await;
 
-    let mut game_state = GameState::default();
-    let background_sound = load_background_sound().await;
-    game_state.flipper.with_flap_sound(load_flap_sound().await);
-    game_state.obstacles = generate_obscructions();
+    let mut exiting_schedule = create_exiting_schedule();
+    let mut title_schedule = create_title_schedule();
+    let mut menu_schedule = create_menu_schedule();
+    let mut playing_schedule = create_playing_schedule();
+    let mut victory_schedule = create_victory_schedule();
+    let mut game_over_schedule = create_game_over_schedule();
 
     loop {
-        let delta = get_frame_time();
-
+        let game_state = world
+            .get_resource::<GameState>()
+            .expect("Expected state to have been initialised.");
         logging::trace!("Game mode is {:?}", game_state.mode);
 
-        match game_state.mode {
-            GameMode::Exiting(ref resume_mode) => {
-                clear_background(MAIZE);
+        match &game_state.mode {
+            GameMode::Exiting(_resume_mode) => {
+                clear_background(MAIZE.into());
                 draw_exit_screen_text(&body_font);
                 if is_key_down(KeyCode::Enter) {
                     break;
                 }
-                if is_key_released(KeyCode::Escape) {
-                    match resume_mode {
-                        ResumeGameMode::Playing => game_state.mode = GameMode::Playing,
-                        ResumeGameMode::Menu => game_state.mode = GameMode::Menu,
-                    }
-                }
+                exiting_schedule.run(&mut world);
             }
             GameMode::Title => {
-                clear_background(MAIZE);
+                clear_background(MAIZE.into());
                 draw_title_screen_text(&heading_font, &body_font, &body_italic_font);
-                if let Some(value) = handle_skip_title() {
-                    game_state.mode = value;
-                }
-                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
-                    game_state.mode = value;
-                };
+                title_schedule.run(&mut world);
             }
             GameMode::Menu => {
-                clear_background(DARKPASTELGREEN);
+                clear_background(DARKPASTELGREEN.into());
                 draw_menu_screen_text(&body_font);
-                if let Some(value) = handle_start_game(&background_sound) {
-                    game_state.mode = value;
-                }
-                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
-                    game_state.mode = value;
-                };
+                menu_schedule.run(&mut world);
             }
             GameMode::Playing => {
-                let GameState {
-                    ref mut camera,
-                    ref finish_line,
-                    ref mut flipper,
-                    ref obstacles,
-                    ..
-                } = game_state;
-                clear_background(DEEPSKYBLUE);
+                clear_background(DEEPSKYBLUE.into());
                 draw_info_text(&body_font);
-
-                if let Some(value) = handle_request_quit(ResumeGameMode::Playing) {
-                    game_state.mode = value;
-                } else {
-                    if is_key_down(KeyCode::Space) {
-                        flipper.flap();
-                    }
-
-                    camera.update(delta);
-                    if let Some(value) =
-                        handle_collisions(flipper, obstacles, finish_line, &background_sound).await
-                    {
-                        game_state.mode = value;
-                    } else if let Some(value) = flipper.update(delta) {
-                        if value == GameMode::GameOver {
-                            handle_before_transisition_to_game_over(&background_sound).await;
-                        }
-                        game_state.mode = value;
-                    }
-                    flipper.draw(camera);
-                    obstacles.iter().for_each(|val| val.draw(camera));
-                    finish_line.draw(camera);
-                }
+                playing_schedule.run(&mut world);
             }
             GameMode::GameOver => {
-                clear_background(COLUMBIABLUE);
+                clear_background(COLUMBIABLUE.into());
                 draw_game_over_screen_text(&body_font);
-
-                handle_replay(&mut game_state);
-                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
-                    game_state.mode = value;
-                };
+                game_over_schedule.run(&mut world);
             }
             GameMode::Won => {
-                clear_background(YINMNBLUE);
+                clear_background(YINMNBLUE.into());
                 draw_win_screen_text(&body_font);
-
-                handle_replay(&mut game_state);
-                if let Some(value) = handle_request_quit(ResumeGameMode::Menu) {
-                    game_state.mode = value;
-                };
+                victory_schedule.run(&mut world);
             }
         }
 
