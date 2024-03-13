@@ -1,5 +1,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 
+mod asset_manager;
 mod components;
 mod fonts;
 mod resources;
@@ -12,11 +13,11 @@ use crate::{
     resources::{Camera, DeltaTime, GameMode, GameState},
     systems::{
         create_exiting_schedule, create_game_over_schedule, create_menu_schedule,
-        create_playing_schedule, create_title_schedule, create_victory_schedule,
+        create_playing_schedule, create_title_schedule, create_victory_schedule, initialise_fonts,
         initialise_sound_resources, spawn_entities,
     },
     ui::{
-        draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
+        draw_exit_screen_text, draw_game_over_screen_text, draw_menu_screen_text,
         draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE,
         MAIZE, YINMNBLUE,
     },
@@ -24,9 +25,9 @@ use crate::{
 use bevy_ecs::{schedule::Schedule, world::World};
 use macroquad::{
     input::{is_key_down, prevent_quit, KeyCode},
-    logging,
     window::{clear_background, next_frame, Conf},
 };
+use resources::{ClearedObstacles, GameAssets};
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
@@ -49,12 +50,18 @@ async fn main<'a>() {
     world.init_resource::<DeltaTime>();
     world.init_resource::<Camera>();
     world.init_resource::<GameState>();
+    world.init_resource::<GameAssets>();
+    world.init_resource::<ClearedObstacles>();
 
     spawn_entities(&mut world).await;
 
     let mut initialise_sound_system = Schedule::default();
     initialise_sound_system.add_systems(initialise_sound_resources);
     initialise_sound_system.run(&mut world);
+
+    let mut initialise_fonts_system = Schedule::default();
+    initialise_fonts_system.add_systems(initialise_fonts);
+    initialise_fonts_system.run(&mut world);
 
     let heading_font = load_heading_font().await;
     let body_italic_font = load_body_italic_font().await;
@@ -71,7 +78,7 @@ async fn main<'a>() {
         let game_state = world
             .get_resource::<GameState>()
             .expect("Expected state to have been initialised.");
-        logging::trace!("Game mode is {:?}", game_state.mode);
+        //logging::trace!("Game mode is {:?}", game_state.mode);
 
         match &game_state.mode {
             GameMode::Exiting(_resume_mode) => {
@@ -94,7 +101,6 @@ async fn main<'a>() {
             }
             GameMode::Playing => {
                 clear_background(DEEPSKYBLUE.into());
-                draw_info_text(&body_font);
                 playing_schedule.run(&mut world);
             }
             GameMode::GameOver => {
