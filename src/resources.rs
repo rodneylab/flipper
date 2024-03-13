@@ -1,5 +1,5 @@
-use bevy_ecs::system::Resource;
-use macroquad::audio::Sound;
+use bevy_ecs::{entity::Entity, system::Resource};
+use macroquad::{audio::Sound, text::Font};
 
 use crate::WINDOW_WIDTH;
 
@@ -24,11 +24,30 @@ pub enum GameMode {
 
 #[derive(Debug, Default, Resource)]
 pub struct GameState {
-    pub background_sound: Option<Sound>,
-    pub game_over_sound: Option<Sound>,
-    pub victory_sound: Option<Sound>,
     pub is_quit_requested: bool,
     pub mode: GameMode,
+}
+
+#[derive(Default, Resource)]
+pub struct GameFonts {
+    pub body: Option<Font>,
+    pub body_italic: Option<Font>,
+    pub heading: Option<Font>,
+}
+
+#[derive(Default, Resource)]
+pub struct GameSounds {
+    pub background: Option<Sound>,
+    pub flap: Option<Sound>,
+    pub game_over: Option<Sound>,
+    pub obstacle_cleared: Option<Sound>,
+    pub victory: Option<Sound>,
+}
+
+#[derive(Default, Resource)]
+pub struct GameAssets {
+    pub fonts: GameFonts,
+    pub sounds: GameSounds,
 }
 
 #[derive(Resource)]
@@ -56,7 +75,13 @@ impl Camera {
         self.left_displacement += delta * self.pan_speed;
     }
 }
+
 #[derive(Resource, Default)]
 pub struct DeltaTime {
     pub seconds: f32,
+}
+
+#[derive(Resource, Default)]
+pub struct ClearedObstacles {
+    pub obstacles: Vec<Entity>,
 }

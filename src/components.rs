@@ -30,9 +30,7 @@ impl Colour {
 pub struct FinishLine;
 
 #[derive(Component, Debug, Default)]
-pub struct Flipper {
-    pub flap_sound: Option<macroquad::audio::Sound>,
-}
+pub struct Flipper {}
 
 #[derive(Component, Debug, Default)]
 pub struct Position {
@@ -96,6 +94,11 @@ impl ObstacleShape {
     pub fn gap_bottom(&self) -> f32 {
         self.gap_y_displacement + self.gap_length
     }
+}
+
+#[derive(Component, Debug, Default)]
+pub struct Score {
+    pub value: u32,
 }
 
 #[cfg(test)]

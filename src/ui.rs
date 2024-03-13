@@ -132,9 +132,15 @@ pub fn draw_game_over_screen_text(body_font: &Font) {
     );
 }
 
-pub fn draw_info_text(body_font: &Font) {
+pub fn draw_info_text(score: u32, body_font: &Font) {
+    let info_text = if score == 0 {
+        String::from("Press SPACE to flap your fins.")
+    } else {
+        format!("Score: {score}")
+    };
     draw_text_ex(
-        "Press SPACE to flap your fins.",
+        &info_text,
+        //"Press SPACE to flap your fins.",
         20.0,
         40.0,
         TextParams {

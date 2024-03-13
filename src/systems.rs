@@ -1,19 +1,24 @@
 use bevy_ecs::{
+    entity::Entity,
+    query::With,
     schedule::Schedule,
     system::{Query, Res, ResMut},
     world::World,
 };
 
 use crate::{
-    components::{Colour, FinishLine, Flipper, ObstacleShape, Position, RectangleShape, Velocity},
-    resources::{Camera, GameMode, GameState, ResumeGameMode},
+    asset_manager::AssetManager,
+    components::{
+        Colour, FinishLine, Flipper, ObstacleShape, Position, RectangleShape, Score, Velocity,
+    },
+    resources::{
+        Camera, ClearedObstacles, GameAssets, GameFonts, GameMode, GameState, ResumeGameMode,
+    },
     sound::{
-        load_background as load_background_sound, load_flap as load_flap_sound,
-        load_game_over as load_game_over_sound, load_victory as load_victory_sound,
         play_sound_once, start_playing_looped as start_playing_looped_sound,
         stop_playing_looped as stop_playing_looped_sound,
     },
-    ui::{COLUMBIABLUE, DARKPASTELGREEN, YINMNBLUE},
+    ui::{draw_info_text, COLUMBIABLUE, DARKPASTELGREEN, YINMNBLUE},
     DeltaTime, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use futures::executor::block_on;
@@ -31,9 +36,7 @@ use macroquad::{
 pub async fn spawn_entities(world: &mut World) {
     let _flipper_entity = world
         .spawn((
-            Flipper {
-                flap_sound: Some(load_flap_sound().await),
-            },
+            Flipper {},
             RectangleShape {
                 width: 20.0,
                 height: 20.0,
@@ -44,6 +47,7 @@ pub async fn spawn_entities(world: &mut World) {
                 y: 0.5 * WINDOW_HEIGHT - 10.0,
             },
             Velocity { x: 240.0, y: 0.0 },
+            Score { value: 0 },
         ))
         .id();
     let _finish_line_entity = world
@@ -98,19 +102,19 @@ pub async fn spawn_entities(world: &mut World) {
     ));
 }
 
-pub async fn initialise_sound_resources_async(game_state: &mut GameState) {
-    let background_sound = load_background_sound().await;
-    game_state.background_sound = Some(background_sound);
-
-    let victory_sound = load_victory_sound().await;
-    game_state.victory_sound = Some(victory_sound);
-
-    let game_over_sound = load_game_over_sound().await;
-    game_state.game_over_sound = Some(game_over_sound);
+pub async fn initialise_fonts_async(game_fonts: &mut GameFonts) {
+    let mut asset_manager = AssetManager;
+    asset_manager.load_fonts(game_fonts).await;
 }
 
-pub fn initialise_sound_resources(mut game_state: ResMut<GameState>) {
-    block_on(initialise_sound_resources_async(&mut game_state));
+pub fn initialise_fonts(mut game_assets: ResMut<GameAssets>) {
+    let game_fonts = &mut game_assets.fonts;
+    block_on(initialise_fonts_async(game_fonts));
+}
+
+pub fn initialise_sound_resources(game_state: ResMut<GameAssets>) {
+    let game_sounds = &mut game_state.into_inner().sounds;
+    block_on(AssetManager::load_sounds(game_sounds));
 }
 
 pub fn update_delta_time(mut delta_time: ResMut<DeltaTime>) {
@@ -118,7 +122,7 @@ pub fn update_delta_time(mut delta_time: ResMut<DeltaTime>) {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn draw_rectangles(query: Query<(&Position, &RectangleShape, &Colour)>, camera: Res<Camera>) {
+fn draw_rectangles(query: Query<(&Position, &RectangleShape, &Colour)>, camera: Res<Camera>) {
     for (position, shape, colour) in query.iter() {
         let Position { x, y } = position;
         let RectangleShape { width, height } = shape;
@@ -135,7 +139,7 @@ pub fn draw_rectangles(query: Query<(&Position, &RectangleShape, &Colour)>, came
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn draw_obstacles(query: Query<(&Position, &ObstacleShape, &Colour)>, camera: Res<Camera>) {
+fn draw_obstacles(query: Query<(&Position, &ObstacleShape, &Colour)>, camera: Res<Camera>) {
     for (position, shape, colour) in query.iter() {
         let Position { x, .. } = position;
         if camera.in_view(*x) {
@@ -175,28 +179,27 @@ fn handle_before_transisition_to_won(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn handle_flipper_finish_line_collision(
-    flipper_query: Query<(&Flipper, &Position, &RectangleShape)>,
+fn handle_flipper_finish_line_collision(
+    flipper_query: Query<(&Position, &RectangleShape), With<Flipper>>,
     finish_line_query: Query<(&FinishLine, &Position, &RectangleShape)>,
+    game_assets: Res<GameAssets>,
     mut game_state: ResMut<GameState>,
 ) {
-    for (_flipper, flipper_position, flipper_shape) in &flipper_query {
-        for (_finish_line, finish_line_position, finish_line_shape) in finish_line_query.iter() {
-            if flipper_shape.right(flipper_position) > finish_line_shape.left(finish_line_position)
-                && flipper_shape.left(flipper_position)
-                    < finish_line_shape.right(finish_line_position)
-            {
-                game_state.mode = GameMode::Won;
-                handle_before_transisition_to_won(
-                    game_state.background_sound.as_ref(),
-                    game_state.victory_sound.as_ref(),
-                );
-            }
+    let (flipper_position, flipper_shape) = flipper_query.single();
+    for (_finish_line, finish_line_position, finish_line_shape) in finish_line_query.iter() {
+        if flipper_shape.right(flipper_position) > finish_line_shape.left(finish_line_position)
+            && flipper_shape.left(flipper_position) < finish_line_shape.right(finish_line_position)
+        {
+            game_state.mode = GameMode::Won;
+            handle_before_transisition_to_won(
+                game_assets.sounds.background.as_ref(),
+                game_assets.sounds.victory.as_ref(),
+            );
         }
     }
 }
 
-pub fn handle_exit(mut game_state: ResMut<'_, GameState>) {
+fn handle_exit(mut game_state: ResMut<'_, GameState>) {
     if is_key_released(KeyCode::Escape) {
         if let GameMode::Exiting(value) = &game_state.mode {
             match value {
@@ -222,48 +225,75 @@ fn handle_before_transisition_to_game_over(
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum FlipperObstacleCollision {
+    Gap,
+    Obstacle,
+}
+
 fn obstacle_flipper_collision(
     obstacle_shape: &ObstacleShape,
     obstacle_position: &Position,
     flipper_shape: &RectangleShape,
     flipper_position: &Position,
-) -> bool {
+) -> Option<FlipperObstacleCollision> {
     let horizontal_overlap = flipper_shape.right(flipper_position)
         > obstacle_shape.left(obstacle_position)
         && flipper_shape.left(flipper_position) < obstacle_shape.right(obstacle_position);
 
     if !horizontal_overlap {
-        return false;
+        return None;
     }
 
-    // test for vertical overlap
-    flipper_shape.bottom(flipper_position) > obstacle_shape.gap_bottom()
-        || flipper_shape.top(flipper_position) < obstacle_shape.gap_top()
+    if flipper_shape.bottom(flipper_position) < obstacle_shape.gap_bottom()
+        && flipper_shape.top(flipper_position) > obstacle_shape.gap_top()
+    {
+        Some(FlipperObstacleCollision::Gap)
+    } else {
+        Some(FlipperObstacleCollision::Obstacle)
+    }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn handle_obstacle_flipper_collision(
-    obstacle_query: Query<'_, '_, (&Position, &ObstacleShape)>,
-    flipper_query: Query<'_, '_, (&Flipper, &Position, &RectangleShape)>,
-    mut game_state: ResMut<'_, GameState>,
+fn handle_obstacle_flipper_collision(
+    obstacle_query: Query<'_, '_, (Entity, &Position, &ObstacleShape)>,
+    mut flipper_query: Query<(&mut Score, &Position, &RectangleShape), With<Flipper>>,
+    game_assets: Res<GameAssets>,
+    mut game_state: ResMut<GameState>,
+    mut cleared_obstacles: ResMut<ClearedObstacles>,
 ) {
-    for (_flipper, flipper_position, flipper_shape) in &flipper_query {
-        for (obstacle_position, obstacle_shape) in obstacle_query.iter() {
-            if obstacle_flipper_collision(
+    //for (mut score, flipper_position, flipper_shape) in &mut flipper_query {
+    let (mut score, flipper_position, flipper_shape) = flipper_query.single_mut();
+    for (entity, obstacle_position, obstacle_shape) in obstacle_query.iter() {
+        if !cleared_obstacles.obstacles.iter().any(|val| *val == entity) {
+            if let Some(value) = obstacle_flipper_collision(
                 obstacle_shape,
                 obstacle_position,
                 flipper_shape,
                 flipper_position,
             ) {
-                info!("Game Over triggered: Flipper-Obstacle collision");
-                handle_before_transisition_to_game_over(
-                    game_state.background_sound.as_ref(),
-                    game_state.game_over_sound.as_ref(),
-                );
-                game_state.mode = GameMode::GameOver;
+                match value {
+                    FlipperObstacleCollision::Obstacle => {
+                        info!("Game Over triggered: Flipper-Obstacle collision");
+                        handle_before_transisition_to_game_over(
+                            game_assets.sounds.background.as_ref(),
+                            game_assets.sounds.game_over.as_ref(),
+                        );
+                        game_state.mode = GameMode::GameOver;
+                    }
+                    FlipperObstacleCollision::Gap => {
+                        info!("Obstacle cleared");
+                        score.value += 1;
+                        cleared_obstacles.obstacles.push(entity);
+                        if let Some(value) = &game_assets.sounds.obstacle_cleared {
+                            play_sound_once(value);
+                        };
+                    }
+                }
             }
         }
     }
+    //}
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -280,59 +310,66 @@ pub fn update_positions(mut query: Query<(&mut Position, &Velocity)>, delta_time
 
 #[allow(clippy::needless_pass_by_value)]
 pub fn update_flipper_vertical_position(
-    mut query: Query<(&Flipper, &mut Position, &mut Velocity)>,
+    mut query: Query<(&mut Position, &mut Velocity), With<Flipper>>,
     delta_time: Res<DeltaTime>,
     mut game_state: ResMut<GameState>,
 ) {
-    for (_flipper, mut position, mut velocity) in &mut query {
-        if velocity.y < 30.0 {
-            velocity.y += 6.0;
-        }
-
-        if position.y <= 0.0 {
-            position.y = 0.0;
-        } else if position.y > WINDOW_HEIGHT {
-            println!("Game over!");
-            game_state.mode = GameMode::GameOver;
-        }
-        position.y += delta_time.seconds * velocity.y;
+    let (mut position, mut velocity) = query.single_mut();
+    if velocity.y < 30.0 {
+        velocity.y += 6.0;
     }
+
+    if position.y <= 0.0 {
+        position.y = 0.0;
+    } else if position.y > WINDOW_HEIGHT {
+        println!("Game over!");
+        game_state.mode = GameMode::GameOver;
+    }
+    position.y += delta_time.seconds * velocity.y;
 }
 
-pub fn handle_flipper_controls(mut query: Query<(&Flipper, &mut Velocity)>) {
-    for (flipper, mut velocity) in &mut query {
-        let Flipper { flap_sound } = flipper;
-        if is_key_down(KeyCode::Space) {
-            if let Some(value) = flap_sound {
-                play_sound(
-                    value,
-                    PlaySoundParams {
-                        looped: false,
-                        volume: 0.05,
-                    },
-                );
-            };
-            if velocity.y > -180.0 {
-                velocity.y += -30.0;
-            }
+#[allow(clippy::needless_pass_by_value)]
+pub fn handle_flipper_controls(
+    mut query: Query<&mut Velocity, With<Flipper>>,
+    game_assets: Res<GameAssets>,
+) {
+    //for mut velocity in &mut query {
+    let mut velocity = query.single_mut();
+    if is_key_down(KeyCode::Space) {
+        if let Some(value) = &game_assets.sounds.flap {
+            play_sound(
+                value,
+                PlaySoundParams {
+                    looped: false,
+                    volume: 0.05,
+                },
+            );
+        };
+        if velocity.y > -180.0 {
+            velocity.y += -30.0;
         }
     }
+    // }
 }
 
 pub fn handle_replay(
-    mut query: Query<(&Flipper, &mut Position)>,
+    mut query: Query<(&mut Score, &mut Position), With<Flipper>>,
     mut camera: ResMut<Camera>,
+    mut cleared_obstacles: ResMut<ClearedObstacles>,
     mut game_state: ResMut<GameState>,
 ) {
     if is_key_released(KeyCode::Space) {
         //reset camera position
         camera.left_displacement = 0.0;
 
-        // reset flipper position
-        for (_flipper, mut position) in &mut query {
-            position.x = 20.0;
-            position.y = 0.5 * WINDOW_HEIGHT - 10.0;
-        }
+        // reset flipper position and score
+        let (mut score, mut position) = query.single_mut();
+        score.value = 0;
+        position.x = 20.0;
+        position.y = 0.5 * WINDOW_HEIGHT - 10.0;
+
+        // reset cleared obstales
+        cleared_obstacles.obstacles = Vec::new();
 
         // update game mode
         game_state.mode = GameMode::Menu;
@@ -362,18 +399,36 @@ pub fn handle_request_quit(mut game_state: ResMut<GameState>) {
     }
 }
 
-pub fn handle_start_game(mut game_state: ResMut<GameState>) {
+#[allow(clippy::needless_pass_by_value)]
+pub fn handle_start_game(game_assets: Res<GameAssets>, mut game_state: ResMut<GameState>) {
     if is_key_down(KeyCode::Space) {
-        if let Some(value) = &game_state.background_sound {
+        if let Some(value) = &game_assets.sounds.background {
             start_playing_looped_sound(value);
         }
         game_state.mode = GameMode::Playing;
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
+fn update_ui(query: Query<&Score, With<Flipper>>, game_assets: Res<GameAssets>) {
+    let score = query.single().value;
+    let assets = game_assets.into_inner();
+
+    let GameAssets {
+        fonts: GameFonts {
+            body: body_font, ..
+        },
+        ..
+    } = assets;
+    if let Some(value) = body_font {
+        draw_info_text(score, value);
+    }
+}
+
 pub fn create_playing_schedule() -> Schedule {
     let mut result = Schedule::default();
     result
+        .add_systems(update_ui)
         .add_systems(handle_request_quit)
         .add_systems(update_delta_time)
         .add_systems(update_camera)
@@ -432,6 +487,8 @@ pub fn create_game_over_schedule() -> Schedule {
 
 #[cfg(test)]
 mod tests {
+    use crate::systems::FlipperObstacleCollision;
+
     use super::{obstacle_flipper_collision, ObstacleShape, Position, RectangleShape};
 
     #[test]
@@ -458,7 +515,7 @@ mod tests {
         );
 
         // assert
-        assert!(!result);
+        assert_eq!(result, None);
     }
 
     #[test]
@@ -485,6 +542,6 @@ mod tests {
         );
 
         // assert
-        assert!(result);
+        assert_eq!(result, Some(FlipperObstacleCollision::Obstacle));
     }
 }
