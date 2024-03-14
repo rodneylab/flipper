@@ -18,7 +18,10 @@ use crate::{
         play_sound_once, start_playing_looped as start_playing_looped_sound,
         stop_playing_looped as stop_playing_looped_sound,
     },
-    ui::{draw_info_text, COLUMBIABLUE, DARKPASTELGREEN, YINMNBLUE},
+    ui::{
+        draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
+        draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, YINMNBLUE,
+    },
     DeltaTime, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use futures::executor::block_on;
@@ -408,6 +411,64 @@ pub fn handle_start_game(game_assets: Res<GameAssets>, mut game_state: ResMut<Ga
 }
 
 #[allow(clippy::needless_pass_by_value)]
+fn update_game_over_ui(game_assets: Res<GameAssets>) {
+    let GameAssets {
+        fonts: GameFonts {
+            body: body_font, ..
+        },
+        ..
+    } = game_assets.into_inner();
+    if let Some(body_font_value) = body_font {
+        draw_game_over_screen_text(body_font_value);
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn update_menu_ui(game_assets: Res<GameAssets>) {
+    let GameAssets {
+        fonts: GameFonts {
+            body: body_font, ..
+        },
+        ..
+    } = game_assets.into_inner();
+    if let Some(body_font_value) = body_font {
+        draw_menu_screen_text(body_font_value);
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn update_title_ui(game_assets: Res<GameAssets>) {
+    let GameAssets {
+        fonts:
+            GameFonts {
+                body: body_font,
+                body_italic: body_italic_font,
+                heading: heading_font,
+                ..
+            },
+        ..
+    } = game_assets.into_inner();
+    if let (Some(body_font_value), Some(body_italic_font_value), Some(heading_font_value)) =
+        (body_font, body_italic_font, heading_font)
+    {
+        draw_title_screen_text(heading_font_value, body_font_value, body_italic_font_value);
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn update_exit_ui(game_assets: Res<GameAssets>) {
+    let GameAssets {
+        fonts: GameFonts {
+            body: body_font, ..
+        },
+        ..
+    } = game_assets.into_inner();
+    if let Some(value) = body_font {
+        draw_exit_screen_text(value);
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
 fn update_ui(query: Query<&Score, With<Flipper>>, game_assets: Res<GameAssets>) {
     let score = query.single().value;
     let assets = game_assets.into_inner();
@@ -423,6 +484,18 @@ fn update_ui(query: Query<&Score, With<Flipper>>, game_assets: Res<GameAssets>) 
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
+fn update_win_screen_ui(game_assets: Res<GameAssets>) {
+    let GameAssets {
+        fonts: GameFonts {
+            body: body_font, ..
+        },
+        ..
+    } = game_assets.into_inner();
+    if let Some(value) = body_font {
+        draw_win_screen_text(value);
+    }
+}
 pub fn create_playing_schedule() -> Schedule {
     let mut result = Schedule::default();
     result
@@ -443,7 +516,7 @@ pub fn create_playing_schedule() -> Schedule {
 
 pub fn create_exiting_schedule() -> Schedule {
     let mut result = Schedule::default();
-    result.add_systems(handle_exit);
+    result.add_systems(update_exit_ui).add_systems(handle_exit);
 
     result
 }
@@ -451,6 +524,7 @@ pub fn create_exiting_schedule() -> Schedule {
 pub fn create_title_schedule() -> Schedule {
     let mut result = Schedule::default();
     result
+        .add_systems(update_title_ui)
         .add_systems(handle_skip_title)
         .add_systems(handle_request_quit);
     result
@@ -459,6 +533,7 @@ pub fn create_title_schedule() -> Schedule {
 pub fn create_menu_schedule() -> Schedule {
     let mut result = Schedule::default();
     result
+        .add_systems(update_menu_ui)
         .add_systems(handle_start_game)
         .add_systems(handle_request_quit);
 
@@ -468,6 +543,7 @@ pub fn create_menu_schedule() -> Schedule {
 pub fn create_victory_schedule() -> Schedule {
     let mut result = Schedule::default();
     result
+        .add_systems(update_win_screen_ui)
         .add_systems(handle_request_quit)
         .add_systems(handle_replay);
 
@@ -477,6 +553,7 @@ pub fn create_victory_schedule() -> Schedule {
 pub fn create_game_over_schedule() -> Schedule {
     let mut result = Schedule::default();
     result
+        .add_systems(update_game_over_ui)
         .add_systems(handle_request_quit)
         .add_systems(handle_replay);
 

@@ -1,5 +1,5 @@
 use macroquad::{
-    audio::load_sound,
+    audio::{load_sound, Sound},
     logging,
     text::{load_ttf_font, Font},
 };
@@ -41,32 +41,23 @@ impl AssetManager {
         };
     }
 
+    async fn load_sound_asset(path: &str, description: &str) -> Option<Sound> {
+        if let Ok(value) = load_sound(path).await {
+            Some(value)
+        } else {
+            logging::error!("Failed to load {} from `{}`.", description, path);
+            None
+        }
+    }
+
     pub async fn load_sounds(sounds: &mut GameSounds) {
-        let background = if let Ok(value) = load_sound(BACKGROUND_SOUND_PATH).await {
-            Some(value)
-        } else {
-            None
-        };
-        let flap = if let Ok(value) = load_sound(FLAP_SOUND_PATH).await {
-            Some(value)
-        } else {
-            None
-        };
-        let game_over = if let Ok(value) = load_sound(GAME_OVER_SOUND_PATH).await {
-            Some(value)
-        } else {
-            None
-        };
-        let obstacle_cleared = if let Ok(value) = load_sound(OBSTACLE_CLEARED_SOUND_PATH).await {
-            Some(value)
-        } else {
-            None
-        };
-        let victory = if let Ok(value) = load_sound(VICTORY_SOUND_PATH).await {
-            Some(value)
-        } else {
-            None
-        };
+        let background =
+            Self::load_sound_asset(BACKGROUND_SOUND_PATH, "background music sound").await;
+        let flap = Self::load_sound_asset(FLAP_SOUND_PATH, "flap sound").await;
+        let game_over = Self::load_sound_asset(GAME_OVER_SOUND_PATH, "game over sound").await;
+        let obstacle_cleared =
+            Self::load_sound_asset(OBSTACLE_CLEARED_SOUND_PATH, "obstacle cleared sound").await;
+        let victory = Self::load_sound_asset(VICTORY_SOUND_PATH, "victory sound").await;
 
         *sounds = GameSounds {
             background,
