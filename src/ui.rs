@@ -140,7 +140,6 @@ pub fn draw_info_text(score: u32, body_font: &Font) {
     };
     draw_text_ex(
         &info_text,
-        //"Press SPACE to flap your fins.",
         20.0,
         40.0,
         TextParams {

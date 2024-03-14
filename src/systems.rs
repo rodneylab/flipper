@@ -262,7 +262,6 @@ fn handle_obstacle_flipper_collision(
     mut game_state: ResMut<GameState>,
     mut cleared_obstacles: ResMut<ClearedObstacles>,
 ) {
-    //for (mut score, flipper_position, flipper_shape) in &mut flipper_query {
     let (mut score, flipper_position, flipper_shape) = flipper_query.single_mut();
     for (entity, obstacle_position, obstacle_shape) in obstacle_query.iter() {
         if !cleared_obstacles.obstacles.iter().any(|val| *val == entity) {
@@ -293,7 +292,6 @@ fn handle_obstacle_flipper_collision(
             }
         }
     }
-    //}
 }
 
 #[allow(clippy::needless_pass_by_value)]
