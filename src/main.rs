@@ -2,25 +2,19 @@
 
 mod asset_manager;
 mod components;
-mod fonts;
 mod resources;
 mod sound;
 mod systems;
 mod ui;
 
 use crate::{
-    fonts::{load_body_font, load_body_italic_font, load_heading_font},
     resources::{Camera, DeltaTime, GameMode, GameState},
     systems::{
         create_exiting_schedule, create_game_over_schedule, create_menu_schedule,
         create_playing_schedule, create_title_schedule, create_victory_schedule, initialise_fonts,
         initialise_sound_resources, spawn_entities,
     },
-    ui::{
-        draw_exit_screen_text, draw_game_over_screen_text, draw_menu_screen_text,
-        draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE,
-        MAIZE, YINMNBLUE,
-    },
+    ui::{COLUMBIABLUE, DARKPASTELGREEN, DEEPSKYBLUE, MAIZE, YINMNBLUE},
 };
 use bevy_ecs::{schedule::Schedule, world::World};
 use macroquad::{
@@ -63,10 +57,6 @@ async fn main<'a>() {
     initialise_fonts_system.add_systems(initialise_fonts);
     initialise_fonts_system.run(&mut world);
 
-    let heading_font = load_heading_font().await;
-    let body_italic_font = load_body_italic_font().await;
-    let body_font = load_body_font().await;
-
     let mut exiting_schedule = create_exiting_schedule();
     let mut title_schedule = create_title_schedule();
     let mut menu_schedule = create_menu_schedule();
@@ -83,7 +73,6 @@ async fn main<'a>() {
         match &game_state.mode {
             GameMode::Exiting(_resume_mode) => {
                 clear_background(MAIZE.into());
-                draw_exit_screen_text(&body_font);
                 if is_key_down(KeyCode::Enter) {
                     break;
                 }
@@ -91,12 +80,10 @@ async fn main<'a>() {
             }
             GameMode::Title => {
                 clear_background(MAIZE.into());
-                draw_title_screen_text(&heading_font, &body_font, &body_italic_font);
                 title_schedule.run(&mut world);
             }
             GameMode::Menu => {
                 clear_background(DARKPASTELGREEN.into());
-                draw_menu_screen_text(&body_font);
                 menu_schedule.run(&mut world);
             }
             GameMode::Playing => {
@@ -105,12 +92,10 @@ async fn main<'a>() {
             }
             GameMode::GameOver => {
                 clear_background(COLUMBIABLUE.into());
-                draw_game_over_screen_text(&body_font);
                 game_over_schedule.run(&mut world);
             }
             GameMode::Won => {
                 clear_background(YINMNBLUE.into());
-                draw_win_screen_text(&body_font);
                 victory_schedule.run(&mut world);
             }
         }
