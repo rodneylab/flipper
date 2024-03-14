@@ -29,10 +29,12 @@ impl AssetManager {
         }
     }
 
-    pub async fn load_fonts(&mut self, fonts: &mut GameFonts) {
-        let body = Self::load_font(BODY_FONT_PATH, "body font").await;
-        let body_italic = Self::load_font(BODY_ITALIC_FONT_PATH, "body italic font").await;
-        let heading = Self::load_font(HEADING_FONT_PATH, "heading font").await;
+    pub async fn load_fonts(fonts: &mut GameFonts) {
+        let (body, body_italic, heading) = futures::join!(
+            Self::load_font(BODY_FONT_PATH, "body font"),
+            Self::load_font(BODY_ITALIC_FONT_PATH, "body italic font"),
+            Self::load_font(HEADING_FONT_PATH, "heading font")
+        );
 
         *fonts = GameFonts {
             body,
@@ -51,14 +53,13 @@ impl AssetManager {
     }
 
     pub async fn load_sounds(sounds: &mut GameSounds) {
-        let background =
-            Self::load_sound_asset(BACKGROUND_SOUND_PATH, "background music sound").await;
-        let flap = Self::load_sound_asset(FLAP_SOUND_PATH, "flap sound").await;
-        let game_over = Self::load_sound_asset(GAME_OVER_SOUND_PATH, "game over sound").await;
-        let obstacle_cleared =
-            Self::load_sound_asset(OBSTACLE_CLEARED_SOUND_PATH, "obstacle cleared sound").await;
-        let victory = Self::load_sound_asset(VICTORY_SOUND_PATH, "victory sound").await;
-
+        let (background, flap, game_over, obstacle_cleared, victory) = futures::join!(
+            Self::load_sound_asset(BACKGROUND_SOUND_PATH, "background music sound"),
+            Self::load_sound_asset(FLAP_SOUND_PATH, "flap sound"),
+            Self::load_sound_asset(GAME_OVER_SOUND_PATH, "game over sound"),
+            Self::load_sound_asset(OBSTACLE_CLEARED_SOUND_PATH, "obstacle cleared sound"),
+            Self::load_sound_asset(VICTORY_SOUND_PATH, "victory sound")
+        );
         *sounds = GameSounds {
             background,
             flap,
