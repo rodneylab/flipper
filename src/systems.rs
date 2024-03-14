@@ -1,11 +1,3 @@
-use bevy_ecs::{
-    entity::Entity,
-    query::With,
-    schedule::Schedule,
-    system::{Query, Res, ResMut},
-    world::World,
-};
-
 use crate::{
     asset_manager::AssetManager,
     components::{
@@ -23,6 +15,13 @@ use crate::{
         draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, YINMNBLUE,
     },
     DeltaTime, WINDOW_HEIGHT, WINDOW_WIDTH,
+};
+use bevy_ecs::{
+    entity::Entity,
+    query::With,
+    schedule::Schedule,
+    system::{Query, Res, ResMut},
+    world::World,
 };
 use futures::executor::block_on;
 use macroquad::{
@@ -105,14 +104,9 @@ pub async fn spawn_entities(world: &mut World) {
     ));
 }
 
-pub async fn initialise_fonts_async(game_fonts: &mut GameFonts) {
-    let mut asset_manager = AssetManager;
-    asset_manager.load_fonts(game_fonts).await;
-}
-
 pub fn initialise_fonts(mut game_assets: ResMut<GameAssets>) {
     let game_fonts = &mut game_assets.fonts;
-    block_on(initialise_fonts_async(game_fonts));
+    block_on(AssetManager::load_fonts(game_fonts));
 }
 
 pub fn initialise_sound_resources(game_state: ResMut<GameAssets>) {
