@@ -24,7 +24,6 @@ pub enum GameMode {
 
 #[derive(Debug, Default, Resource)]
 pub struct GameState {
-    pub is_quit_requested: bool,
     pub mode: GameMode,
 }
 
