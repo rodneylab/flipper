@@ -13,7 +13,7 @@ description = "2D Rust game using the lightweight Macroquad game engine and the 
 # crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bevy_ecs = "0.13"
+bevy_ecs = "0.14"
 futures = "0.3"
 macroquad = { version = "0.4.5", features = ["audio"] }
 
