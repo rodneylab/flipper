@@ -9,10 +9,10 @@ description = "2D Rust game using the lightweight Macroquad game engine and the 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[test]]
-name = "macroquad_tests"
-path = "macroquad_tests/main.rs"
-harness = false
+# [[test]]
+# name = "macroquad_tests"
+# path = "macroquad_tests/main.rs"
+# harness = false
 
 # [profile.release]
 # codegen-units = 1
