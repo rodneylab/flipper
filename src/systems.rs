@@ -163,7 +163,7 @@ fn draw_obstacles(query: Query<(&Position, &ObstacleShape, &Colour)>, camera: Re
     }
 }
 
-fn handle_before_transisition_to_won(
+fn handle_before_transition_to_won(
     background_sound: Option<&Sound>,
     victory_sound: Option<&Sound>,
 ) {
@@ -188,7 +188,7 @@ fn handle_flipper_finish_line_collision(
             && flipper_shape.left(flipper_position) < finish_line_shape.right(finish_line_position)
         {
             game_state.mode = GameMode::Won;
-            handle_before_transisition_to_won(
+            handle_before_transition_to_won(
                 game_assets.sounds.background.as_ref(),
                 game_assets.sounds.victory.as_ref(),
             );
@@ -210,7 +210,7 @@ fn handle_exit(mut game_state: ResMut<'_, GameState>) {
     }
 }
 
-fn handle_before_transisition_to_game_over(
+fn handle_before_transition_to_game_over(
     background_sound: Option<&Sound>,
     game_over_sound: Option<&Sound>,
 ) {
@@ -271,7 +271,7 @@ fn handle_obstacle_flipper_collision(
                 match value {
                     FlipperObstacleCollision::Obstacle => {
                         info!("Game Over triggered: Flipper-Obstacle collision");
-                        handle_before_transisition_to_game_over(
+                        handle_before_transition_to_game_over(
                             game_assets.sounds.background.as_ref(),
                             game_assets.sounds.game_over.as_ref(),
                         );
