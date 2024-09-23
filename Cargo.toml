@@ -29,4 +29,4 @@ miniquad = "0.4.2"
 sapp-wasm = "=0.1.26"
 
 [dev-dependencies]
-float-cmp = "0.9.0"
+float-cmp = "0.10.0"
