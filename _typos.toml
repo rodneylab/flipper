@@ -1,0 +1,8 @@
+[files]
+extend-exclude = [
+  "dist/flipper.js",
+  "dist/mq_js_bundle.js",
+  "public/flipper.js",
+  "public/mq_js_bundle.js",
+  "wbindgen/flipper.js",
+]
