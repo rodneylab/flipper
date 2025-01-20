@@ -37,7 +37,7 @@ fn conf() -> Conf {
 }
 
 #[macroquad::main(conf)]
-async fn main<'a>() {
+async fn main() {
     prevent_quit();
 
     let mut world = World::new();
