@@ -283,7 +283,7 @@ fn handle_obstacle_flipper_collision(
                         cleared_obstacles.obstacles.push(entity);
                         if let Some(value) = &game_assets.sounds.obstacle_cleared {
                             play_sound_once(value);
-                        };
+                        }
                     }
                 }
             }
@@ -328,7 +328,6 @@ pub fn handle_flipper_controls(
     mut query: Query<&mut Velocity, With<Flipper>>,
     game_assets: Res<GameAssets>,
 ) {
-    //for mut velocity in &mut query {
     let mut velocity = query.single_mut();
     if is_key_down(KeyCode::Space) {
         if let Some(value) = &game_assets.sounds.flap {
@@ -339,12 +338,11 @@ pub fn handle_flipper_controls(
                     volume: 0.05,
                 },
             );
-        };
+        }
         if velocity.y > -180.0 {
             velocity.y += -30.0;
         }
     }
-    // }
 }
 
 pub fn handle_replay(
