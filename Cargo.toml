@@ -21,10 +21,10 @@ description = "2D Rust game using the lightweight Macroquad game engine and the 
 # opt-level = "z"
 
 [dependencies]
-bevy_ecs = "0.15.2"
+bevy_ecs = "0.15.3"
 futures = "0.3.31"
-macroquad = { version = "=0.4.13", features = ["audio"] }
-miniquad = "0.4.6"
+macroquad = { version = "=0.4.12", features = ["audio"] }
+miniquad = "0.4.5"
 sapp-wasm = "=0.1.26"
 
 [dev-dependencies]
