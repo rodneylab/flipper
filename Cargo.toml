@@ -23,7 +23,7 @@ description = "2D Rust game using the lightweight Macroquad game engine and the 
 [dependencies]
 bevy_ecs = "0.15.3"
 futures = "0.3.31"
-macroquad = { version = "=0.4.12", features = ["audio"] }
+macroquad = { version = "=0.4.13", features = ["audio"] }
 miniquad = "0.4.5"
 sapp-wasm = "=0.1.26"
 
