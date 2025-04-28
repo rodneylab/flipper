@@ -263,7 +263,7 @@ fn handle_obstacle_flipper_collision(
 ) -> bevy_ecs::error::Result<()> {
     let (mut score, flipper_position, flipper_shape) = flipper_query.single_mut()?;
     for (entity, obstacle_position, obstacle_shape) in obstacle_query.iter() {
-        if !cleared_obstacles.obstacles.iter().any(|val| *val == entity) {
+        if !cleared_obstacles.obstacles.contains(&entity) {
             if let Some(value) = obstacle_flipper_collision(
                 obstacle_shape,
                 obstacle_position,
