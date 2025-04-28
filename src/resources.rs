@@ -1,4 +1,4 @@
-use bevy_ecs::{entity::Entity, system::Resource};
+use bevy_ecs::{entity::Entity, resource::Resource};
 use macroquad::{audio::Sound, text::Font};
 
 use crate::WINDOW_WIDTH;

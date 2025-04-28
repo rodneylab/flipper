@@ -181,8 +181,8 @@ fn handle_flipper_finish_line_collision(
     finish_line_query: Query<(&FinishLine, &Position, &RectangleShape)>,
     game_assets: Res<GameAssets>,
     mut game_state: ResMut<GameState>,
-) {
-    let (flipper_position, flipper_shape) = flipper_query.single();
+) -> bevy_ecs::error::Result<()> {
+    let (flipper_position, flipper_shape) = flipper_query.single()?;
     for (_finish_line, finish_line_position, finish_line_shape) in finish_line_query.iter() {
         if flipper_shape.right(flipper_position) > finish_line_shape.left(finish_line_position)
             && flipper_shape.left(flipper_position) < finish_line_shape.right(finish_line_position)
@@ -194,6 +194,8 @@ fn handle_flipper_finish_line_collision(
             );
         }
     }
+
+    Ok(())
 }
 
 fn handle_exit(mut game_state: ResMut<'_, GameState>) {
@@ -258,8 +260,8 @@ fn handle_obstacle_flipper_collision(
     game_assets: Res<GameAssets>,
     mut game_state: ResMut<GameState>,
     mut cleared_obstacles: ResMut<ClearedObstacles>,
-) {
-    let (mut score, flipper_position, flipper_shape) = flipper_query.single_mut();
+) -> bevy_ecs::error::Result<()> {
+    let (mut score, flipper_position, flipper_shape) = flipper_query.single_mut()?;
     for (entity, obstacle_position, obstacle_shape) in obstacle_query.iter() {
         if !cleared_obstacles.obstacles.iter().any(|val| *val == entity) {
             if let Some(value) = obstacle_flipper_collision(
@@ -289,6 +291,8 @@ fn handle_obstacle_flipper_collision(
             }
         }
     }
+
+    Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -308,8 +312,8 @@ pub fn update_flipper_vertical_position(
     mut query: Query<(&mut Position, &mut Velocity), With<Flipper>>,
     delta_time: Res<DeltaTime>,
     mut game_state: ResMut<GameState>,
-) {
-    let (mut position, mut velocity) = query.single_mut();
+) -> bevy_ecs::error::Result<()> {
+    let (mut position, mut velocity) = query.single_mut()?;
     if velocity.y < 30.0 {
         velocity.y += 6.0;
     }
@@ -321,14 +325,16 @@ pub fn update_flipper_vertical_position(
         game_state.mode = GameMode::GameOver;
     }
     position.y += delta_time.seconds * velocity.y;
+
+    Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
 pub fn handle_flipper_controls(
     mut query: Query<&mut Velocity, With<Flipper>>,
     game_assets: Res<GameAssets>,
-) {
-    let mut velocity = query.single_mut();
+) -> bevy_ecs::error::Result<()> {
+    let mut velocity = query.single_mut()?;
     if is_key_down(KeyCode::Space) {
         if let Some(value) = &game_assets.sounds.flap {
             play_sound(
@@ -343,6 +349,8 @@ pub fn handle_flipper_controls(
             velocity.y += -30.0;
         }
     }
+
+    Ok(())
 }
 
 pub fn handle_replay(
@@ -350,13 +358,13 @@ pub fn handle_replay(
     mut camera: ResMut<Camera>,
     mut cleared_obstacles: ResMut<ClearedObstacles>,
     mut game_state: ResMut<GameState>,
-) {
+) -> bevy_ecs::error::Result<()> {
     if is_key_released(KeyCode::Space) {
         //reset camera position
         camera.left_displacement = 0.0;
 
         // reset flipper position and score
-        let (mut score, mut position) = query.single_mut();
+        let (mut score, mut position) = query.single_mut()?;
         score.value = 0;
         position.x = 20.0;
         position.y = 0.5 * WINDOW_HEIGHT - 10.0;
@@ -367,6 +375,8 @@ pub fn handle_replay(
         // update game mode
         game_state.mode = GameMode::Menu;
     }
+
+    Ok(())
 }
 
 pub fn handle_skip_title(mut game_state: ResMut<GameState>) {
@@ -461,8 +471,11 @@ fn update_exit_ui(game_assets: Res<GameAssets>) {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_ui(query: Query<&Score, With<Flipper>>, game_assets: Res<GameAssets>) {
-    let score = query.single().value;
+fn update_ui(
+    query: Query<&Score, With<Flipper>>,
+    game_assets: Res<GameAssets>,
+) -> bevy_ecs::error::Result<()> {
+    let score = query.single()?.value;
     let assets = game_assets.into_inner();
 
     let GameAssets {
@@ -474,6 +487,8 @@ fn update_ui(query: Query<&Score, With<Flipper>>, game_assets: Res<GameAssets>) 
     if let Some(value) = body_font {
         draw_info_text(score, value);
     }
+
+    Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
