@@ -1,4 +1,4 @@
-/target
 *.profraw
 .DS_Store
+/target
 rusty-tags.vi
