@@ -421,8 +421,6 @@ dependencies = [
  "float-cmp",
  "futures",
  "macroquad",
- "miniquad",
- "sapp-wasm",
 ]
 
 [[package]]
@@ -935,12 +933,6 @@ name = "rustversion"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
-
-[[package]]
-name = "sapp-wasm"
-version = "0.1.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00e859e8645a3bcb85aecd40bab883438e4105f21b21bccbeac2348760f508bb"
 
 [[package]]
 name = "scopeguard"
