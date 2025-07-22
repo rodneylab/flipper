@@ -1,4 +1,5 @@
 use crate::{
+    DeltaTime, WINDOW_HEIGHT, WINDOW_WIDTH,
     asset_manager::AssetManager,
     components::{
         Colour, FinishLine, Flipper, ObstacleShape, Position, RectangleShape, Score, Velocity,
@@ -11,10 +12,10 @@ use crate::{
         stop_playing_looped as stop_playing_looped_sound,
     },
     ui::{
-        draw_exit_screen_text, draw_game_over_screen_text, draw_info_text, draw_menu_screen_text,
-        draw_title_screen_text, draw_win_screen_text, COLUMBIABLUE, DARKPASTELGREEN, YINMNBLUE,
+        COLUMBIABLUE, DARKPASTELGREEN, YINMNBLUE, draw_exit_screen_text,
+        draw_game_over_screen_text, draw_info_text, draw_menu_screen_text, draw_title_screen_text,
+        draw_win_screen_text,
     },
-    DeltaTime, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use bevy_ecs::{
     entity::Entity,
@@ -25,10 +26,10 @@ use bevy_ecs::{
 };
 use futures::executor::block_on;
 use macroquad::{
-    audio::{play_sound, PlaySoundParams, Sound},
+    audio::{PlaySoundParams, Sound, play_sound},
     input::{
-        is_key_down, is_key_released, is_mouse_button_pressed, is_quit_requested, KeyCode,
-        MouseButton,
+        KeyCode, MouseButton, is_key_down, is_key_released, is_mouse_button_pressed,
+        is_quit_requested,
     },
     logging::{self, info},
     shapes::draw_rectangle,
@@ -571,7 +572,7 @@ pub fn create_game_over_schedule() -> Schedule {
 mod tests {
     use crate::systems::FlipperObstacleCollision;
 
-    use super::{obstacle_flipper_collision, ObstacleShape, Position, RectangleShape};
+    use super::{ObstacleShape, Position, RectangleShape, obstacle_flipper_collision};
 
     #[test]
     fn flipper_obstacle_collision_successfully_reports_miss() {

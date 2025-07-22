@@ -1,5 +1,5 @@
-use crate::{components::Colour, WINDOW_WIDTH};
-use macroquad::text::{draw_text_ex, measure_text, Font, TextDimensions, TextParams};
+use crate::{WINDOW_WIDTH, components::Colour};
+use macroquad::text::{Font, TextDimensions, TextParams, draw_text_ex, measure_text};
 
 pub const COLUMBIABLUE: Colour = Colour {
     r: 189,
