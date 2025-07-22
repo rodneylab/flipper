@@ -1,7 +1,7 @@
 use macroquad::{
-    audio::{load_sound, Sound},
+    audio::{Sound, load_sound},
     logging,
-    text::{load_ttf_font, Font},
+    text::{Font, load_ttf_font},
 };
 
 use crate::resources::{GameFonts, GameSounds};

@@ -1,4 +1,4 @@
-use macroquad::audio::{play_sound, stop_sound, PlaySoundParams, Sound};
+use macroquad::audio::{PlaySoundParams, Sound, play_sound, stop_sound};
 
 pub fn play_sound_once(sound: &Sound) {
     play_sound(

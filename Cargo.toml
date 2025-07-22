@@ -2,10 +2,10 @@
 name = "flipper"
 version = "0.1.0"
 authors = ["Rodney Johnson <ask@rodneylab.com>"]
-edition = "2021"
+edition = "2024"
 license = "BSD-3-Clause"
 repository = "https://github.com/flipper"
-rust-version = "1.79.0"
+rust-version = "1.85.0"
 description = "2D Rust game using the lightweight Macroquad game engine and the Bevy ECS"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

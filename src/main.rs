@@ -18,8 +18,8 @@ use crate::{
 };
 use bevy_ecs::{schedule::Schedule, world::World};
 use macroquad::{
-    input::{is_key_down, prevent_quit, KeyCode},
-    window::{clear_background, next_frame, Conf},
+    input::{KeyCode, is_key_down, prevent_quit},
+    window::{Conf, clear_background, next_frame},
 };
 use resources::{ClearedObstacles, GameAssets};
 
