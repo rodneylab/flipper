@@ -5,7 +5,8 @@ authors = ["Rodney Johnson <ask@rodneylab.com>"]
 edition = "2024"
 license = "BSD-3-Clause"
 repository = "https://github.com/flipper"
-rust-version = "1.85.0"
+# bevy_ecs v0.17.2 requires Rust 1.86.0
+rust-version = "1.86.0"
 description = "2D Rust game using the lightweight Macroquad game engine and the Bevy ECS"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -22,7 +23,7 @@ description = "2D Rust game using the lightweight Macroquad game engine and the 
 # opt-level = "z"
 
 [dependencies]
-bevy_ecs = "0.16.1"
+bevy_ecs = "0.17.2"
 futures = "0.3.31"
 macroquad = { version = "=0.4.12", features = ["audio"] }
 
